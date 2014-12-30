@@ -7,7 +7,7 @@ var FEEDBACK_FILE = 'feedbacks.log';
 var FILE_SIZE_LIMIT = 100 * 1024 * 1024;
 var mPrevIP, mPrevSaveTime = 0, mSaveTimeGap = 60 * 1000;
 
-app.set('port', process.env.PORT || 3000);
+app.set('port', process.env.PORT || 80);
 
 app.use(express.static(__dirname + '/public'));
 app.use(bodyParser.json());       // to support JSON-encoded bodies
@@ -17,12 +17,16 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 
 app.post('/send_feedback', saveFeedback);
 
-app.listen(app.get('port'), function(){
-	console.log( 'Express started on http://localhost:' +
-				 app.get('port') + '; press Ctrl-C to terminate.' 
-			   );
-});
+var server = app.listen(app.get('port'), function(){
+	var uid = parseInt(process.env.SUDO_UID);
 
+	if (uid) process.setuid(uid);
+	console.log('Server\'s UID is now ' + process.getuid());
+
+	var host = server.address().address;
+	var port = server.address().port;
+	console.log( 'Express started at http://%s:%s', host, port);
+});
 
 function saveFeedback(req, res) {
 	var tCurrentTime = new Date();
@@ -35,8 +39,7 @@ function saveFeedback(req, res) {
 	mPrevIP = req.ip;
 	mPrevSaveTime = tCurrentTime;
 
-	console.log(req.ip);
-	var feedback = JSON.stringify(req.body) + '\n';
+	var feedback = tCurrentTime + '  IP:' + req.ip + '  ' + JSON.stringify(req.body) + '\n';
 
 	if (feedback.length < 1000) {
 		fs.stat(FEEDBACK_FILE, function(err, stats) {
