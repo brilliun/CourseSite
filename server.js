@@ -1,19 +1,26 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var fs = require('fs');
+var morgan = require('morgan');
 var app = express();
 
 var FEEDBACK_FILE = 'feedbacks.log';
 var FILE_SIZE_LIMIT = 100 * 1024 * 1024;
 var mPrevIP, mPrevSaveTime = 0, mSaveTimeGap = 60 * 1000;
 
+var ACCESS_LOG_FILE = '/access.log';
+var accessLogStream = fs.createWriteStream(__dirname + ACCESS_LOG_FILE, {flags: 'a'});
+
 app.set('port', process.env.PORT || 80);
+
+app.use(morgan('combined', {immediate: true, stream: accessLogStream, skip: function(req, res) {var url = req.originalUrl || req.url || ''; return url.length > 1;}}));
 
 app.use(express.static(__dirname + '/public'));
 app.use(bodyParser.json());       // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
   extended: true
 }));
+
 
 app.post('/send_feedback', saveFeedback);
 
